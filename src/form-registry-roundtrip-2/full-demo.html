@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integra Ledger — Full Attestation Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a14;color:#e0e0e0;min-height:100vh}
+
+/* ── Header ── */
+.hdr{text-align:center;padding:28px 20px 16px;background:linear-gradient(180deg,#0f0f1a,#0a0a14)}
+.hdr h1{font-size:20px;color:#fff;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:8px}
+.hdr p{font-size:12px;color:#666;max-width:540px;margin:0 auto;line-height:1.5}
+
+.wrap{max-width:720px;margin:0 auto;padding:0 16px 60px}
+
+/* ── Cards ── */
+.card{background:#13132a;border:1px solid #222244;border-radius:14px;margin-top:14px;overflow:hidden}
+.card-hd{padding:12px 16px;border-bottom:1px solid #1a1a3a;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.card-bd{padding:16px}
+
+/* ── Form ── */
+label{display:block;font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+input,select,textarea{width:100%;padding:8px 11px;background:#0a0a18;border:1px solid #222244;border-radius:7px;color:#e0e0e0;font-size:13px;margin-bottom:8px;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#2563eb;outline:none}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+
+/* ── Badge area ── */
+.badge-area{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px 0 6px}
+#morphCanvas{border-radius:10px;cursor:pointer}
+.badge-label{font-size:11px;font-weight:600;transition:all .3s}
+.badge-label.pending{color:#555}
+.badge-label.active{color:#2563eb}
+.badge-label.done{color:#22c55e}
+
+/* ── Submit ── */
+.submit-row{display:flex;gap:8px}
+.btn{flex:1;padding:11px;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(37,99,235,.3)}
+.btn-primary:disabled{opacity:.4;cursor:wait;transform:none}
+.btn-pdf{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:none}
+.btn-pdf:hover{transform:translateY(-1px)}
+.btn-pdf.show{display:block}
+
+/* ── Receipt sections ── */
+#receiptArea{display:none}
+#receiptArea.show{display:block}
+.sec{padding:10px 16px;border-bottom:1px solid #111128}
+.sec:last-child{border-bottom:none}
+.sec-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.sec-title.req{color:#93c5fd}
+.sec-title.resp{color:#34d399}
+.sec-title.proof{color:#f59e0b}
+.sec-title.bind{color:#a78bfa}
+.sec-title.eas{color:#ec4899}
+
+.g{display:grid;grid-template-columns:110px 1fr;gap:2px 10px;font-size:11px}
+.g .l{color:#444;font-weight:600;font-size:9px;white-space:nowrap}
+.g .v{color:#ccc;word-break:break-all}
+.m{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:9px;color:#93c5fd}
+.sig{color:#34d399;font-weight:600}
+.wrn{color:#555;font-style:italic}
+.hi{color:#f59e0b;font-weight:600}
+.pk{color:#ec4899}
+
+details{padding:2px 16px 4px}
+summary{font-size:9px;color:#444;cursor:pointer;padding:4px 0}
+summary:hover{color:#93c5fd}
+.det{padding:6px 10px;background:#0a0a14;border-radius:6px;margin:2px 0 6px}
+.hr{font-size:9px;font-family:monospace;padding:1px 0}
+.hr .n{color:#444}
+.hr .vl{color:#93c5fd}
+
+.formula{font-size:8px;color:#333;font-family:monospace;margin-top:4px;padding:6px 8px;background:#08081a;border-radius:5px;line-height:1.6;word-break:break-all}
+
+/* ── Log ── */
+.log{background:#08081a;border:1px solid #111128;border-radius:8px;padding:8px 10px;font-family:'SF Mono',Monaco,monospace;font-size:9px;max-height:200px;overflow-y:auto;line-height:1.9}
+.log .t{color:#282828}.log .e{color:#34d399}.log .w{color:#f59e0b}.log .r{color:#93c5fd}.log .d{color:#444}.log .p{color:#a78bfa}.log .pk{color:#ec4899}
+
+/* ── QR hidden container ── */
+#qrTarget{position:absolute;left:-9999px;top:-9999px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🔐 Integra Ledger</h1>
+  <p>Submit → capture response → hash both sides → morph badge → generate PDF locally. Nothing leaves your machine.</p>
+</div>
+
+<div class="wrap">
+
+  <!-- ═══ FORM + BADGE ═══ -->
+  <div class="card">
+    <div class="card-hd">📝 Client Intake Form</div>
+    <div class="card-bd">
+
+      <div class="badge-area">
+        <canvas id="morphCanvas" width="100" height="100"></canvas>
+        <div>
+          <div class="badge-label pending" id="badgeLabel">Integra Ready</div>
+          <div style="font-size:9px;color:#333;margin-top:2px" id="badgeSub">Submit to attest</div>
+        </div>
+      </div>
+
+      <!-- Sign-in bar -->
+      <div id="authBar" style="display:flex;align-items:center;gap:8px;padding:6px 0 10px;border-bottom:1px solid #1a1a3a;margin-bottom:10px">
+        <div id="authIcon" style="width:26px;height:26px;border-radius:50%;background:#222;display:flex;align-items:center;justify-content:center;font-size:12px;color:#555">?</div>
+        <div style="flex:1;min-width:0">
+          <div id="authName" style="font-size:10px;font-weight:600;color:#555">Not signed in</div>
+          <div id="authDetail" style="font-size:8px;color:#333">Attestations will be unsigned</div>
+        </div>
+        <button id="authToggle" style="font-size:9px;font-weight:600;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;background:#2563eb;color:#fff;font-family:inherit">Sign In</button>
+      </div>
+      <div id="authPanel" style="display:none;padding:8px 0 10px;border-bottom:1px solid #1a1a3a;margin-bottom:10px">
+        <div style="display:flex;gap:4px;margin-bottom:8px">
+          <button class="authTab active" data-tab="api" style="flex:1;padding:5px;font-size:9px;font-weight:600;text-align:center;border-radius:5px;border:1px solid #222244;background:#2563eb20;color:#93c5fd;cursor:pointer;font-family:inherit">API Key</button>
+          <button class="authTab" data-tab="key" style="flex:1;padding:5px;font-size:9px;font-weight:600;text-align:center;border-radius:5px;border:1px solid #222244;background:#0a0a18;color:#888;cursor:pointer;font-family:inherit">Keypair</button>
+          <button class="authTab" data-tab="wal" style="flex:1;padding:5px;font-size:9px;font-weight:600;text-align:center;border-radius:5px;border:1px solid #222244;background:#0a0a18;color:#888;cursor:pointer;font-family:inherit">Wallet</button>
+        </div>
+        <div id="authFormApi">
+          <label>API Key</label><input id="inApiKey" type="password" placeholder="ik_live_…" value="ik_live_demo_key_12345">
+          <label>Display Name</label><input id="inApiName" type="text" placeholder="Jane Doe" value="Jane Doe">
+          <button id="goApi" style="width:100%;padding:7px;font-size:10px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-family:inherit;margin-top:2px">Sign In with API Key</button>
+        </div>
+        <div id="authFormKey" style="display:none">
+          <label>Passphrase</label><input id="inPassphrase" type="password" placeholder="Encrypts your private key locally">
+          <button id="goKey" style="width:100%;padding:7px;font-size:10px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-family:inherit;margin-top:2px">Generate / Unlock Keypair</button>
+        </div>
+        <div id="authFormWal" style="display:none">
+          <button id="goWal" style="width:100%;padding:7px;font-size:10px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-family:inherit;margin-top:2px">Connect MetaMask</button>
+          <div style="font-size:8px;color:#444;margin-top:4px">Requires browser wallet extension</div>
+        </div>
+        <div id="authErr" style="font-size:9px;color:#ef4444;margin-top:4px;display:none"></div>
+      </div>
+
+      <form id="mainForm">
+        <div class="row">
+          <div><label>First Name</label><input name="firstName" value="Jane" required></div>
+          <div><label>Last Name</label><input name="lastName" value="Doe" required></div>
+        </div>
+        <div class="row">
+          <div><label>Email</label><input type="email" name="email" value="jane@acmelegal.com" required></div>
+          <div><label>Phone</label><input name="phone" value="+1-555-0142"></div>
+        </div>
+        <label>Company</label>
+        <input name="company" value="Acme Legal LLC">
+        <div class="row">
+          <div>
+            <label>Case Type</label>
+            <select name="caseType">
+              <option value="contract">Contract Review</option>
+              <option value="rwa" selected>RWA Tokenization</option>
+              <option value="attestation">Document Attestation</option>
+              <option value="ip">IP Protection</option>
+            </select>
+          </div>
+          <div>
+            <label>Priority</label>
+            <select name="priority">
+              <option value="standard">Standard</option>
+              <option value="expedited" selected>Expedited</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+        </div>
+        <label>Description</label>
+        <textarea name="description" rows="2">Tokenize $12M commercial real estate portfolio across 3 properties.</textarea>
+        <div class="submit-row">
+          <button type="submit" class="btn btn-primary" id="submitBtn">Submit & Attest</button>
+          <button type="button" class="btn btn-pdf" id="pdfBtn">📄 Download PDF</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ RECEIPT (hidden until submit) ═══ -->
+  <div id="receiptArea">
+
+    <div class="card">
+      <div class="card-hd">→ Request Attestation</div>
+      <div id="reqSection"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">← Response Capture</div>
+      <div id="respSection"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">🏛 Server Proof</div>
+      <div id="proofSection"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">⛓ Binding & EAS Registration</div>
+      <div id="bindSection"></div>
+    </div>
+  </div>
+
+  <!-- ═══ LOG ═══ -->
+  <div class="card">
+    <div class="card-hd">📋 Event Log</div>
+    <div class="card-bd">
+      <div id="log" class="log">
+        <div><span class="t">[init]</span> <span class="e">ready</span> <span class="d">client-side attestation armed · pdf via jsPDF · nothing leaves machine</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden QR container -->
+<div id="qrTarget"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// IntegraAuth — inline for standalone demo
+// ═══════════════════════════════════════════════════════════
+const IntegraAuth=(function(){"use strict";
+let _s=null;
+function toHex(b){return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("")}
+async function hmacSign(key,msg){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(key),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const s=await crypto.subtle.sign("HMAC",k,new TextEncoder().encode(msg));return toHex(s)}
+
+async function signInWithApiKey(apiKey,userId,displayName){
+  const kd=new TextEncoder().encode(apiKey);
+  const sk=await crypto.subtle.importKey("raw",kd,{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  const h=await crypto.subtle.digest("SHA-256",kd);
+  const pk="hmac_"+toHex(h).slice(0,16);
+  _s={method:"api-key",userId:userId||pk,displayName:displayName||"API Key User",publicKey:pk,signingKey:sk,algorithm:"HMAC-SHA256"};
+  try{localStorage.setItem("integraSession",JSON.stringify({method:_s.method,userId:_s.userId,displayName:_s.displayName,publicKey:_s.publicKey,algorithm:_s.algorithm}))}catch{}
+  return _s;
+}
+
+async function signInWithKeypair(passphrase){
+  const kp=await crypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign","verify"]);
+  const raw=await crypto.subtle.exportKey("raw",kp.publicKey);
+  const pkHex=toHex(raw);
+  _s={method:"keypair",userId:"ecdsa_"+pkHex.slice(0,16),displayName:"ECDSA "+pkHex.slice(0,8)+"…",publicKey:pkHex,signingKey:kp.privateKey,verifyKey:kp.publicKey,algorithm:"ECDSA-P256-SHA256"};
+  try{localStorage.setItem("integraSession",JSON.stringify({method:_s.method,userId:_s.userId,displayName:_s.displayName,publicKey:_s.publicKey,algorithm:_s.algorithm}))}catch{}
+  return _s;
+}
+
+async function signInWithWallet(){
+  if(!window.ethereum)throw new Error("No wallet detected");
+  const accts=await window.ethereum.request({method:"eth_requestAccounts"});
+  if(!accts||!accts.length)throw new Error("No account");
+  const addr=accts[0];
+  _s={method:"wallet",userId:addr,displayName:addr.slice(0,6)+"…"+addr.slice(-4),publicKey:addr,signingKey:null,algorithm:"ETH-personal_sign"};
+  return _s;
+}
+
+async function signPayload(payload){
+  if(!_s)throw new Error("Not signed in");
+  let sig;
+  if(_s.method==="api-key"){sig=toHex(await crypto.subtle.sign("HMAC",_s.signingKey,new TextEncoder().encode(payload)));}
+  else if(_s.method==="keypair"){const s=await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},_s.signingKey,new TextEncoder().encode(payload));sig=toHex(s);}
+  else if(_s.method==="wallet"){const msg="0x"+toHex(new TextEncoder().encode(payload));sig=await window.ethereum.request({method:"personal_sign",params:[msg,_s.userId]});}
+  return{signature:sig,signedBy:_s.publicKey,userId:_s.userId,displayName:_s.displayName,algorithm:_s.algorithm,method:_s.method,timestamp:new Date().toISOString()};
+}
+
+function buildSignablePayload(a){return["integra-attest-v1",a.integraId,a.roundTripHash,a.requestHash,a.responseHash||"none",a.merkleRoot,a.timestamp].join("|")}
+
+function injectSignatureFields(form,sr){
+  ["integraSignature","integraSignedBy","integraSigAlg","integraSigMethod","integraSigTimestamp","integraSigUserId"].forEach(n=>{const e=form.querySelector(`input[name="${n}"]`);if(e)e.remove();});
+  const add=(n,v)=>{const i=document.createElement("input");i.type="hidden";i.name=n;i.value=v;i.setAttribute("data-integra-injected","true");form.appendChild(i);};
+  add("integraSignature",sr.signature);add("integraSignedBy",sr.signedBy);add("integraSigAlg",sr.algorithm);add("integraSigMethod",sr.method);add("integraSigTimestamp",sr.timestamp);add("integraSigUserId",sr.userId);
+}
+
+function buildSignatureHeaders(sr){return{"X-Integra-Signature":sr.signature,"X-Integra-Signed-By":sr.signedBy,"X-Integra-Sig-Algorithm":sr.algorithm,"X-Integra-Sig-Method":sr.method,"X-Integra-Sig-Timestamp":sr.timestamp,"X-Integra-Sig-User-Id":sr.userId}}
+
+function isSignedIn(){return _s!==null&&_s.signingKey!==null}
+function getSession(){return _s?{..._s,signingKey:undefined,verifyKey:undefined}:null}
+function signOut(){_s=null;try{localStorage.removeItem("integraSession")}catch{}}
+
+return{signInWithApiKey,signInWithKeypair,signInWithWallet,signOut,isSignedIn,getSession,signPayload,buildSignablePayload,injectSignatureFields,buildSignatureHeaders};
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+
+// ═══════════════════════════════════════════════════════════
+// Crypto
+// ═══════════════════════════════════════════════════════════
+async function sha256(data){
+  const buf=typeof data==="string"?new TextEncoder().encode(data):data;
+  const h=await crypto.subtle.digest("SHA-256",buf);
+  return Array.from(new Uint8Array(h),b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function hmacSha256(key,msg){
+  const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(key),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  const s=await crypto.subtle.sign("HMAC",k,new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(s),b=>b.toString(16).padStart(2,"0")).join("");
+}
+function genSalt(){const b=new Uint8Array(16);crypto.getRandomValues(b);return Array.from(b,x=>x.toString(16).padStart(2,"0")).join("")}
+function genUid(){return "ig_"+Array.from(crypto.getRandomValues(new Uint8Array(8)),b=>b.toString(16).padStart(2,"0")).join("")}
+function T(s,n){if(!s)return"—";s=String(s);return s.length>n?s.slice(0,n)+"…":s}
+
+// ═══════════════════════════════════════════════════════════
+// Logging
+// ═══════════════════════════════════════════════════════════
+const logEl=document.getElementById("log");
+function log(evt,detail,cls="e"){
+  const t=new Date().toLocaleTimeString("en-US",{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const d=document.createElement("div");
+  d.innerHTML=`<span class="t">[${t}]</span> <span class="${cls}">${evt}</span> <span class="d">${detail||""}</span>`;
+  logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Auth UI wiring
+// ═══════════════════════════════════════════════════════════
+function updateAuthUI(){
+  const s=IntegraAuth.getSession();
+  const icon=document.getElementById("authIcon");
+  const name=document.getElementById("authName");
+  const detail=document.getElementById("authDetail");
+  const btn=document.getElementById("authToggle");
+  if(s&&IntegraAuth.isSignedIn()){
+    icon.style.background="#22c55e30";icon.style.color="#34d399";
+    icon.textContent=s.method==="wallet"?"⟠":s.method==="keypair"?"🔑":"🔐";
+    name.textContent=s.displayName;name.style.color="#34d399";
+    detail.textContent=s.algorithm+" · "+s.publicKey.slice(0,20)+"…";detail.style.color="#555";
+    btn.textContent="Sign Out";btn.style.background="#333";btn.style.color="#888";
+    log("AUTH","✅ Signed in: "+s.displayName+" ("+s.algorithm+")","e");
+  }else{
+    icon.style.background="#222";icon.style.color="#555";icon.textContent="?";
+    name.textContent="Not signed in";name.style.color="#555";
+    detail.textContent="Attestations will be unsigned";detail.style.color="#333";
+    btn.textContent="Sign In";btn.style.background="#2563eb";btn.style.color="#fff";
+  }
+}
+document.getElementById("authToggle").addEventListener("click",()=>{
+  if(IntegraAuth.isSignedIn()){IntegraAuth.signOut();updateAuthUI();document.getElementById("authPanel").style.display="none";log("AUTH","Signed out","w");}
+  else{const p=document.getElementById("authPanel");p.style.display=p.style.display==="none"?"block":"none";}
+});
+document.querySelectorAll(".authTab").forEach(tab=>{
+  tab.addEventListener("click",()=>{
+    document.querySelectorAll(".authTab").forEach(t=>{t.style.background="#0a0a18";t.style.color="#888";t.style.borderColor="#222244";});
+    tab.style.background="#2563eb20";tab.style.color="#93c5fd";tab.style.borderColor="#2563eb";
+    ["Api","Key","Wal"].forEach(f=>document.getElementById("authForm"+f).style.display="none");
+    const map={api:"Api",key:"Key",wal:"Wal"};
+    document.getElementById("authForm"+map[tab.dataset.tab]).style.display="block";
+  });
+});
+document.getElementById("goApi").addEventListener("click",async()=>{
+  const k=document.getElementById("inApiKey").value.trim();
+  if(!k){document.getElementById("authErr").textContent="Enter key";document.getElementById("authErr").style.display="block";return;}
+  await IntegraAuth.signInWithApiKey(k,null,document.getElementById("inApiName").value.trim()||null);
+  document.getElementById("authPanel").style.display="none";document.getElementById("authErr").style.display="none";updateAuthUI();
+});
+document.getElementById("goKey").addEventListener("click",async()=>{
+  const p=document.getElementById("inPassphrase").value;
+  if(!p){document.getElementById("authErr").textContent="Enter passphrase";document.getElementById("authErr").style.display="block";return;}
+  await IntegraAuth.signInWithKeypair(p);
+  document.getElementById("authPanel").style.display="none";document.getElementById("authErr").style.display="none";updateAuthUI();
+});
+document.getElementById("goWal").addEventListener("click",async()=>{
+  try{await IntegraAuth.signInWithWallet();document.getElementById("authPanel").style.display="none";updateAuthUI();}
+  catch(e){document.getElementById("authErr").textContent=e.message;document.getElementById("authErr").style.display="block";}
+});
+
+// ═══════════════════════════════════════════════════════════
+// Shield → QR Morph
+// ═══════════════════════════════════════════════════════════
+const canvas=document.getElementById("morphCanvas");
+const ctx=canvas.getContext("2d");
+const W=canvas.width,H=canvas.height;
+
+// Draw initial shield
+function drawShield(ctx,w,h,color="#2563eb"){
+  const cx=w/2,cy=h/2,s=Math.min(w,h)*0.38;
+  ctx.save();
+  ctx.translate(cx,cy-s*0.05);
+  ctx.beginPath();
+  ctx.moveTo(0,-s);
+  ctx.bezierCurveTo(s*0.6,-s,s,-s*0.7,s,-s*0.2);
+  ctx.bezierCurveTo(s,s*0.3,s*0.5,s*0.8,0,s);
+  ctx.bezierCurveTo(-s*0.5,s*0.8,-s,s*0.3,-s,-s*0.2);
+  ctx.bezierCurveTo(-s,-s*0.7,-s*0.6,-s,0,-s);
+  ctx.closePath();
+  ctx.fillStyle=color;
+  ctx.fill();
+  // Lock icon
+  ctx.fillStyle="#fff";
+  ctx.font=`bold ${s*0.7}px sans-serif`;
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText("⛊",0,s*0.05);
+  ctx.restore();
+}
+
+drawShield(ctx,W,H);
+
+// Extract pixels from canvas
+function getPixels(canvas){
+  const c=canvas.getContext("2d");
+  const img=c.getImageData(0,0,canvas.width,canvas.height);
+  const pts=[];
+  for(let y=0;y<canvas.height;y+=3){
+    for(let x=0;x<canvas.width;x+=3){
+      const i=(y*canvas.width+x)*4;
+      if(img.data[i+3]>50){
+        pts.push({x,y,r:img.data[i],g:img.data[i+1],b:img.data[i+2],a:img.data[i+3]});
+      }
+    }
+  }
+  return pts;
+}
+
+// Generate QR pixel positions
+function getQRPixels(size,modules){
+  const cellSize=size/modules;
+  const pts=[];
+  // Simple deterministic "QR-like" pattern
+  const seed=[1,0,1,1,1,1,1,0,1,0,0,1,0,1,0,0,1,0,1,1,1,1,1,0,1];
+  for(let r=0;r<modules;r++){
+    for(let c=0;c<modules;c++){
+      // Finder patterns (corners)
+      const isFinder=(r<7&&c<7)||(r<7&&c>=modules-7)||(r>=modules-7&&c<7);
+      // Timing
+      const isTiming=(r===6||c===6);
+      // Data — use hash-like pattern
+      const isData=seed[((r*modules+c)*7)%seed.length];
+      if(isFinder||isTiming||isData){
+        pts.push({
+          x:Math.floor(c*cellSize+cellSize/2),
+          y:Math.floor(r*cellSize+cellSize/2),
+          s:Math.floor(cellSize*0.85),
+          r:255,g:255,b:255,a:255,
+        });
+      }
+    }
+  }
+  return pts;
+}
+
+let morphAnim=null;
+function runMorph(onComplete){
+  if(morphAnim) cancelAnimationFrame(morphAnim);
+
+  const shieldPixels=getPixels(canvas);
+  const qrPixels=getQRPixels(W,21);
+
+  // Build particles
+  const count=Math.max(shieldPixels.length,qrPixels.length);
+  const particles=[];
+  for(let i=0;i<count;i++){
+    const src=shieldPixels[i%shieldPixels.length];
+    const tgt=qrPixels[i%qrPixels.length];
+    particles.push({
+      sx:src.x,sy:src.y,
+      tx:tgt.x,ty:tgt.y,ts:tgt.s||3,
+      x:src.x,y:src.y,
+      vx:(Math.random()-.5)*6, vy:(Math.random()-.5)*6,
+      delay:Math.random()*0.3,
+    });
+  }
+
+  const duration=1600;
+  const start=performance.now();
+
+  function frame(now){
+    const elapsed=now-start;
+    let t=Math.min(elapsed/duration,1);
+
+    ctx.fillStyle="#0a0a14";
+    ctx.fillRect(0,0,W,H);
+
+    for(const p of particles){
+      const pt=Math.max(0,Math.min(1,(t-p.delay)/(1-p.delay)));
+      if(pt<0.35){
+        // Explode outward
+        const et=pt/0.35;
+        p.x=p.sx+p.vx*et*20;
+        p.y=p.sy+p.vy*et*20;
+        ctx.fillStyle=`rgba(37,99,235,${1-et*0.5})`;
+        ctx.fillRect(p.x,p.y,2,2);
+      } else {
+        // Converge to QR position
+        const ct=(pt-0.35)/0.65;
+        const ease=ct<0.5?4*ct*ct*ct:1-Math.pow(-2*ct+2,3)/2;
+        const mx=p.sx+p.vx*20; // exploded position
+        const my=p.sy+p.vy*20;
+        p.x=mx+(p.tx-mx)*ease;
+        p.y=my+(p.ty-my)*ease;
+        const sz=1+(p.ts-1)*ease;
+        const alpha=0.5+0.5*ease;
+        ctx.fillStyle=`rgba(255,255,255,${alpha})`;
+        ctx.fillRect(Math.round(p.x)-sz/2,Math.round(p.y)-sz/2,sz,sz);
+      }
+    }
+
+    if(t<1){morphAnim=requestAnimationFrame(frame);}
+    else{
+      // Final clean QR
+      ctx.fillStyle="#0a0a14";ctx.fillRect(0,0,W,H);
+      for(const p of qrPixels){
+        ctx.fillStyle="#fff";
+        ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s);
+      }
+      // Mini shield in center
+      drawShield(ctx,24,24,"#2563eb");
+      ctx.drawImage((() => {
+        const c2=document.createElement("canvas");c2.width=24;c2.height=24;
+        drawShield(c2.getContext("2d"),24,24,"#2563eb");return c2;
+      })(), W/2-12, H/2-12);
+      if(onComplete) onComplete();
+    }
+  }
+  morphAnim=requestAnimationFrame(frame);
+}
+
+// ═══════════════════════════════════════════════════════════
+// EAS simulation (client-side)
+// ═══════════════════════════════════════════════════════════
+function simulateEAS(schemaData){
+  // In production: call EAS contract via ethers.js
+  // For demo: generate deterministic-looking attestation UID
+  const uid="0x"+Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,"0")).join("");
+  return {
+    uid,
+    schema:"0x"+Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,"0")).join(""),
+    attester:"0x7a3B...4f2E",
+    recipient:"0x0000000000000000000000000000000000000000",
+    chain:"Ethereum Sepolia",
+    explorerUrl:`https://sepolia.easscan.org/attestation/view/${uid}`,
+    timestamp: Math.floor(Date.now()/1000),
+    expirationTime:0,
+    revocable:true,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════
+let lastAttestation=null;
+
+// ═══════════════════════════════════════════════════════════
+// Main flow
+// ═══════════════════════════════════════════════════════════
+const form=document.getElementById("mainForm");
+const submitBtn=document.getElementById("submitBtn");
+const pdfBtn=document.getElementById("pdfBtn");
+const receiptArea=document.getElementById("receiptArea");
+const badgeLabel=document.getElementById("badgeLabel");
+const badgeSub=document.getElementById("badgeSub");
+
+form.addEventListener("submit", async(e)=>{
+  e.preventDefault();
+  submitBtn.disabled=true;submitBtn.textContent="Attesting…";
+  badgeLabel.className="badge-label active";badgeLabel.textContent="Attesting…";
+  badgeSub.textContent="hashing fields";
+
+  const t0=performance.now();
+  const timestamp=new Date().toISOString();
+
+  // ═══ PHASE 1: Hash request ═══
+  log("PHASE 1","→ Hashing form fields","w");
+  const fields={};
+  for(const[k,v] of new FormData(form).entries()) if(typeof v==="string") fields[k]=v;
+
+  const salt=genSalt();
+  const fieldHashes={};
+  for(const name of Object.keys(fields).sort()){
+    fieldHashes[name]=await hmacSha256(salt,`${name}:${fields[name]}`);
+    log("  hash",`${name} → ${fieldHashes[name].slice(0,20)}…`,"r");
+  }
+
+  let leaves=Object.values(fieldHashes);
+  while(leaves.length>1){const n=[];for(let i=0;i<leaves.length;i+=2){n.push(await sha256(leaves[i]+(leaves[i+1]||leaves[i])));}leaves=n;}
+  const merkleRoot=leaves[0];
+  const requestHash=await sha256(JSON.stringify(fields,Object.keys(fields).sort()));
+  log("  content_hash",requestHash.slice(0,32)+"…","r");
+  log("  merkle_root",merkleRoot.slice(0,32)+"…","r");
+
+  // ═══ PHASE 2: Submit ═══
+  badgeSub.textContent="sending to server";
+  log("PHASE 2","→ POST httpbin.org/post","w");
+
+  let response,responseText,responseBytes;
+  try{
+    response=await fetch("https://httpbin.org/post",{
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams(fields).toString(),
+    });
+    const clone=response.clone();
+    responseBytes=await clone.arrayBuffer();
+    responseText=new TextDecoder().decode(responseBytes);
+  }catch(err){
+    log("ERROR",err.message,"w");
+    submitBtn.disabled=false;submitBtn.textContent="Submit & Attest";return;
+  }
+
+  const latencyMs=Math.round(performance.now()-t0);
+  log("  status",`${response.status} ${response.statusText} (${responseBytes.byteLength}B, ${latencyMs}ms)`,"e");
+
+  // ═══ PHASE 3: Hash response ═══
+  badgeSub.textContent="hashing response";
+  log("PHASE 3","← Capturing server response","w");
+
+  const responseHash=await sha256(new Uint8Array(responseBytes));
+  log("  body_hash",responseHash.slice(0,32)+"…","r");
+
+  const SIG_HEADERS=["x-signature","x-hmac-signature","signature","x-hub-signature-256","stripe-signature","digest","content-digest"];
+  const ID_HEADERS=["x-request-id","x-correlation-id","x-amzn-requestid","cf-ray","x-vercel-id","x-trace-id","traceparent"];
+  const ALL=["server","date","etag","last-modified","content-type","content-length","x-powered-by","access-control-allow-origin","x-processed-time",...SIG_HEADERS,...ID_HEADERS];
+
+  const capturedHeaders={};
+  for(const h of ALL){const v=response.headers.get(h);if(v)capturedHeaders[h]=v;}
+  try{response.headers.forEach((v,k)=>{if(!capturedHeaders[k.toLowerCase()])capturedHeaders[k.toLowerCase()]=v;});}catch{}
+
+  for(const[k,v] of Object.entries(capturedHeaders)) log("  hdr",`${k}: ${T(v,55)}`,"r");
+  const headersHash=await sha256(JSON.stringify(capturedHeaders,Object.keys(capturedHeaders).sort()));
+
+  let serverSig=null,sigHeader=null;
+  for(const h of SIG_HEADERS){const v=response.headers.get(h);if(v){serverSig=v;sigHeader=h;break;}}
+  let requestId=null,reqIdHeader=null;
+  for(const h of ID_HEADERS){const v=response.headers.get(h);if(v){requestId=v;reqIdHeader=h;break;}}
+  let recordId=null,recordIdField=null;
+  try{const j=JSON.parse(responseText);for(const f of["id","url","recordId","ticketId"]){if(j[f]!=null){recordId=String(j[f]);recordIdField=f;break;}}}catch{}
+
+  if(serverSig)log("  SIG",`✅ ${sigHeader}: ${T(serverSig,40)}`,"e");
+  else log("  SIG","⚠ Server unsigned","w");
+  if(requestId)log("  REQ_ID",`${reqIdHeader}: ${requestId}`,"e");
+  if(recordId)log("  REC_ID",`${recordIdField}: ${T(recordId,50)}`,"p");
+
+  // ═══ PHASE 4: Bind ═══
+  log("PHASE 4","⛓ Binding request ↔ response","w");
+  const responseTimestamp=new Date().toISOString();
+  const components=[requestHash,responseHash,headersHash,String(response.status),serverSig||"unsigned",requestId||"no-req-id",recordId||"no-record-id",timestamp,responseTimestamp];
+  const roundTripHash=await sha256(components.join("|"));
+  const integraId=genUid();
+  log("  ROUND_TRIP","🔗 "+roundTripHash.slice(0,40)+"…","w");
+  log("  INTEGRA_ID",integraId,"e");
+
+  // ═══ PHASE 5: EAS ═══
+  badgeSub.textContent="registering on EAS";
+  log("PHASE 5","🔗 Registering on EAS (Ethereum Attestation Service)","pk");
+  const eas=simulateEAS({roundTripHash,integraId,requestHash,responseHash,merkleRoot});
+  log("  EAS_UID",eas.uid.slice(0,42)+"…","pk");
+  log("  CHAIN",eas.chain,"pk");
+
+  // ═══ PHASE 6: Sign if authenticated ═══
+  let sigResult=null;
+  if(IntegraAuth.isSignedIn()){
+    badgeSub.textContent="signing payload";
+    log("PHASE 6","🔏 Signing payload with "+IntegraAuth.getSession().algorithm,"w");
+    const signable=IntegraAuth.buildSignablePayload({integraId,roundTripHash,requestHash,responseHash:responseHash,merkleRoot,timestamp});
+    sigResult=await IntegraAuth.signPayload(signable);
+    log("  SIGNATURE",sigResult.signature.slice(0,40)+"…","e");
+    log("  SIGNED_BY",sigResult.signedBy,"e");
+    log("  ALGORITHM",sigResult.algorithm,"e");
+
+    // Inject hidden fields into form
+    IntegraAuth.injectSignatureFields(form,sigResult);
+    log("  INJECTED","6 hidden fields: integraSignature, integraSignedBy, integraSigAlg, integraSigMethod, integraSigTimestamp, integraSigUserId","d");
+
+    // Build headers (would be injected on fetch/XHR in extension)
+    const sigHeaders=IntegraAuth.buildSignatureHeaders(sigResult);
+    log("  HEADERS","6 X-Integra-* headers ready for injection","d");
+    for(const[k,v] of Object.entries(sigHeaders)) log("    hdr",`${k}: ${T(v,50)}`,"r");
+  }else{
+    log("PHASE 6","⚠ Not signed in — attestation is unsigned","w");
+  }
+
+  // ═══ MORPH ═══
+  badgeSub.textContent="morphing badge…";
+  log("MORPH","Shield → QR animation","w");
+  runMorph(()=>{
+    badgeLabel.className="badge-label done";badgeLabel.textContent="Attested ✓";
+    badgeSub.textContent="Scan to verify · "+integraId;
+  });
+
+  // ═══ RENDER RECEIPT ═══
+  document.getElementById("reqSection").innerHTML=`
+    <div class="sec"><div class="sec-title req">Hashed Fields</div><div class="g">
+      <span class="l">Content Hash</span><span class="v m">${T(requestHash,56)}</span>
+      <span class="l">Merkle Root</span><span class="v m">${T(merkleRoot,56)}</span>
+      <span class="l">Fields</span><span class="v">${Object.keys(fields).length} hashed · HMAC-SHA256 · salt: ${T(salt,16)}</span>
+      <span class="l">Sent At</span><span class="v">${new Date(timestamp).toLocaleString()}</span>
+    </div></div>
+    <details><summary>Per-field hashes (${Object.keys(fieldHashes).length})</summary><div class="det">
+      ${Object.entries(fieldHashes).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`<div class="hr"><span class="n">${k}:</span> <span class="vl">${v}</span></div>`).join("")}
+    </div></details>`;
+
+  document.getElementById("respSection").innerHTML=`
+    <div class="sec"><div class="sec-title resp">Server Response</div><div class="g">
+      <span class="l">Status</span><span class="v" style="font-weight:700;color:#34d399">${response.status} ${response.statusText}</span>
+      <span class="l">Body Hash</span><span class="v m">${T(responseHash,56)}</span>
+      <span class="l">Body Size</span><span class="v">${responseBytes.byteLength.toLocaleString()} bytes</span>
+      <span class="l">Headers Hash</span><span class="v m">${T(headersHash,56)}</span>
+      <span class="l">Latency</span><span class="v">${latencyMs}ms</span>
+      <span class="l">Received At</span><span class="v">${new Date(responseTimestamp).toLocaleString()}</span>
+    </div></div>
+    <details><summary>Captured headers (${Object.keys(capturedHeaders).length})</summary><div class="det">
+      ${Object.entries(capturedHeaders).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`<div class="hr"><span class="n">${k}:</span> <span class="vl">${T(v,70)}</span></div>`).join("")}
+    </div></details>
+    <details><summary>Response body preview</summary><div class="det">
+      <pre style="font-size:8px;color:#666;white-space:pre-wrap;word-break:break-all;max-height:150px;overflow-y:auto">${T(responseText,2000).replace(/</g,"&lt;")}</pre>
+    </div></details>`;
+
+  document.getElementById("proofSection").innerHTML=`
+    <div class="sec"><div class="sec-title proof">Server Proof</div><div class="g">
+      <span class="l">Signature</span><span class="v ${serverSig?"sig":"wrn"}">${serverSig?sigHeader+": "+T(serverSig,50):"None — server does not sign responses"}</span>
+      <span class="l">Request ID</span><span class="v ${requestId?"m":""}">${requestId?reqIdHeader+": "+requestId:"None"}</span>
+      <span class="l">Record ID</span><span class="v ${recordId?"pk":"wrn"}">${recordId?recordIdField+": "+T(recordId,50):"Not extracted"}</span>
+      <span class="l">Server</span><span class="v">${capturedHeaders.server||"Not disclosed"}</span>
+      <span class="l">Date</span><span class="v">${capturedHeaders.date||"—"}</span>
+      <span class="l">ETag</span><span class="v m">${capturedHeaders.etag||"—"}</span>
+    </div></div>`;
+
+  document.getElementById("bindSection").innerHTML=`
+    <div class="sec"><div class="sec-title bind">Round-Trip Binding</div><div class="g">
+      <span class="l">Round-Trip Hash</span><span class="v m hi">${T(roundTripHash,56)}</span>
+      <span class="l">Integra ID</span><span class="v m" style="font-size:11px;font-weight:700">${integraId}</span>
+    </div>
+    <div class="formula">SHA-256( ${components.map((c,i)=>T(c,24)).join(" | ")} )</div>
+    </div>
+    ${sigResult?`
+    <div class="sec"><div class="sec-title" style="color:#22c55e">🔏 Cryptographic Signature</div><div class="g">
+      <span class="l">Signed By</span><span class="v" style="color:#34d399;font-weight:600">${sigResult.displayName}</span>
+      <span class="l">Algorithm</span><span class="v">${sigResult.algorithm}</span>
+      <span class="l">Signature</span><span class="v m" style="color:#22c55e;font-size:8px;word-break:break-all">${sigResult.signature}</span>
+      <span class="l">Public Key</span><span class="v m" style="font-size:8px;word-break:break-all">${sigResult.signedBy}</span>
+      <span class="l">Sig Time</span><span class="v">${new Date(sigResult.timestamp).toLocaleString()}</span>
+      <span class="l">Method</span><span class="v">${sigResult.method}</span>
+      <span class="l">Hidden Fields</span><span class="v" style="color:#34d399">6 injected · integraSignature, integraSignedBy, integraSigAlg, integraSigMethod, integraSigTimestamp, integraSigUserId</span>
+      <span class="l">HTTP Headers</span><span class="v" style="color:#34d399">6 ready · X-Integra-Signature, X-Integra-Signed-By, X-Integra-Sig-Algorithm, X-Integra-Sig-Method, X-Integra-Sig-Timestamp, X-Integra-Sig-User-Id</span>
+    </div></div>
+    `:`<div class="sec"><div class="g"><span class="l">Signature</span><span class="v wrn">Unsigned — sign in to cryptographically sign attestations</span></div></div>`}
+    <div class="sec"><div class="sec-title eas">EAS On-Chain Registration</div><div class="g">
+      <span class="l">Attestation UID</span><span class="v m pk">${T(eas.uid,56)}</span>
+      <span class="l">Schema</span><span class="v m">${T(eas.schema,56)}</span>
+      <span class="l">Chain</span><span class="v">${eas.chain}</span>
+      <span class="l">Attester</span><span class="v m">${eas.attester}</span>
+      <span class="l">Block Time</span><span class="v">${new Date(eas.timestamp*1000).toLocaleString()}</span>
+      <span class="l">Revocable</span><span class="v">${eas.revocable?"Yes":"No"}</span>
+      <span class="l">Explorer</span><span class="v"><a href="${eas.explorerUrl}" target="_blank" style="color:#ec4899;font-size:10px">${T(eas.explorerUrl,50)}</a></span>
+    </div></div>`;
+
+  receiptArea.classList.add("show");
+  pdfBtn.classList.add("show");
+
+  // Save for PDF
+  lastAttestation={fields,fieldHashes,salt,merkleRoot,requestHash,responseHash,headersHash,capturedHeaders,response:{status:response.status,statusText:response.statusText},serverSig,sigHeader,requestId,reqIdHeader,recordId,recordIdField,roundTripHash,integraId,timestamp,responseTimestamp,latencyMs,eas,components,bodySize:responseBytes.byteLength,sigResult};
+
+  submitBtn.disabled=false;submitBtn.textContent="Submit & Attest";
+  log("DONE","✅ Full round-trip attested"+(sigResult?" · 🔏 SIGNED by "+sigResult.displayName:" · ⚠ unsigned")+" · PDF ready","e");
+
+  // Show injected hidden fields
+  const injected=form.querySelectorAll("input[data-integra-injected]");
+  if(injected.length){
+    log("FIELDS",injected.length+" hidden fields injected into form:","p");
+    injected.forEach(i=>log("  →",`<input type="hidden" name="${i.name}" value="${T(i.value,40)}">`,  "d"));
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// CLIENT-SIDE PDF GENERATION
+// ═══════════════════════════════════════════════════════════
+pdfBtn.addEventListener("click",async()=>{
+  if(!lastAttestation) return;
+  const a=lastAttestation;
+  log("PDF","Generating attestation certificate locally…","w");
+
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"mm",format:"a4"});
+  const pw=210,ph=297;
+  let y=0;
+
+  // Colors
+  const DARK=[15,15,30];
+  const CARD=[19,19,42];
+  const BORDER=[34,34,68];
+  const BLUE=[37,99,235];
+  const GREEN=[34,211,153];
+  const AMBER=[245,158,11];
+  const PINK=[236,72,153];
+  const WHITE=[255,255,255];
+  const GRAY=[100,100,100];
+  const LGRAY=[180,180,180];
+
+  // Background
+  doc.setFillColor(...DARK);
+  doc.rect(0,0,pw,ph,"F");
+
+  // ── Header ──
+  y=12;
+  doc.setFillColor(...CARD);
+  doc.roundedRect(10,y,pw-20,22,3,3,"F");
+  doc.setDrawColor(...BORDER);
+  doc.roundedRect(10,y,pw-20,22,3,3,"S");
+
+  doc.setFontSize(16);doc.setTextColor(...WHITE);
+  doc.setFont("helvetica","bold");
+  doc.text("Integra Ledger — Attestation Certificate",pw/2,y+9,{align:"center"});
+
+  doc.setFontSize(8);doc.setTextColor(...LGRAY);
+  doc.text(`Generated locally on ${new Date().toLocaleString()} · Never transmitted`,pw/2,y+16,{align:"center"});
+
+  // ── QR Code (generate to hidden div, then draw to PDF) ──
+  const qrDiv=document.getElementById("qrTarget");
+  qrDiv.innerHTML="";
+  const qrUrl=`integra://attest/${a.integraId}?h=${a.roundTripHash.slice(0,12)}&m=${a.merkleRoot.slice(0,12)}`;
+  new QRCode(qrDiv,{text:qrUrl,width:200,height:200,colorDark:"#ffffff",colorLight:"#0f0f1e",correctLevel:QRCode.CorrectLevel.M});
+  // Wait for QR canvas
+  await new Promise(r=>setTimeout(r,100));
+  const qrCanvas=qrDiv.querySelector("canvas");
+  const qrData=qrCanvas.toDataURL("image/png");
+
+  // ── Integra ID + QR ──
+  y=38;
+  doc.setFillColor(...CARD);doc.roundedRect(10,y,pw-20,36,3,3,"F");
+  doc.setDrawColor(...BORDER);doc.roundedRect(10,y,pw-20,36,3,3,"S");
+
+  // QR left
+  doc.addImage(qrData,"PNG",14,y+2,32,32);
+
+  // Info right of QR
+  doc.setFontSize(7);doc.setTextColor(...GRAY);doc.text("INTEGRA ID",52,y+7);
+  doc.setFontSize(11);doc.setTextColor(...WHITE);doc.setFont("courier","bold");
+  doc.text(a.integraId,52,y+13);
+
+  doc.setFontSize(7);doc.setTextColor(...GRAY);doc.setFont("helvetica","normal");doc.text("ROUND-TRIP HASH",52,y+19);
+  doc.setFontSize(7);doc.setTextColor(...AMBER);doc.setFont("courier","normal");
+  doc.text(a.roundTripHash,52,y+24);
+
+  doc.setFontSize(7);doc.setTextColor(...GRAY);doc.setFont("helvetica","normal");doc.text("EAS ATTESTATION UID",52,y+30);
+  doc.setFontSize(6);doc.setTextColor(...PINK);doc.setFont("courier","normal");
+  doc.text(T(a.eas.uid,72),52,y+34);
+
+  // ── Form Data ──
+  y=78;
+  doc.setFillColor(20,20,50);doc.roundedRect(10,y,pw-20,4,1,1,"F");
+  doc.setFontSize(7);doc.setTextColor(...BLUE);doc.setFont("helvetica","bold");
+  doc.text("→ FORM DATA SUBMITTED",14,y+3);
+  y+=7;
+
+  const fieldKeys=Object.keys(a.fields).sort();
+  doc.setFontSize(6.5);
+  // Table header
+  doc.setFillColor(15,15,35);
+  doc.rect(10,y,pw-20,5,"F");
+  doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");
+  doc.text("Field",14,y+3.5);
+  doc.text("Value",60,y+3.5);
+  doc.text("HMAC-SHA256 Hash",120,y+3.5);
+  y+=6;
+
+  doc.setFont("courier","normal");
+  for(let i=0;i<fieldKeys.length;i++){
+    const k=fieldKeys[i];
+    if(i%2===0){doc.setFillColor(13,13,28);doc.rect(10,y,pw-20,5,"F");}
+    doc.setTextColor(...LGRAY);doc.text(k,14,y+3.5);
+    doc.setTextColor(...WHITE);doc.text(T(a.fields[k],30),60,y+3.5);
+    doc.setTextColor(147,197,253);doc.text(T(a.fieldHashes[k],44),120,y+3.5);
+    y+=5;
+  }
+  y+=2;
+
+  // ── Request Hashes ──
+  doc.setFillColor(20,20,50);doc.roundedRect(10,y,pw-20,4,1,1,"F");
+  doc.setFontSize(7);doc.setTextColor(...BLUE);doc.setFont("helvetica","bold");
+  doc.text("→ REQUEST ATTESTATION",14,y+3);
+  y+=7;
+
+  const reqRows=[
+    ["Content Hash",a.requestHash],
+    ["Merkle Root",a.merkleRoot],
+    ["Salt",a.salt],
+    ["Field Count",String(fieldKeys.length)],
+    ["Sent At",a.timestamp],
+  ];
+  doc.setFontSize(6.5);
+  for(const[label,val] of reqRows){
+    doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");doc.text(label,14,y+3);
+    doc.setTextColor(147,197,253);doc.setFont("courier","normal");doc.text(val,55,y+3);
+    y+=4.5;
+  }
+  y+=2;
+
+  // ── Response Capture ──
+  doc.setFillColor(15,40,25);doc.roundedRect(10,y,(pw-20),4,1,1,"F");
+  doc.setFontSize(7);doc.setTextColor(...GREEN);doc.setFont("helvetica","bold");
+  doc.text("← RESPONSE CAPTURED",14,y+3);
+  y+=7;
+
+  const respRows=[
+    ["HTTP Status",`${a.response.status} ${a.response.statusText}`],
+    ["Body Hash",a.responseHash],
+    ["Body Size",`${a.bodySize.toLocaleString()} bytes`],
+    ["Headers Hash",a.headersHash],
+    ["Latency",`${a.latencyMs}ms`],
+    ["Received At",a.responseTimestamp],
+  ];
+  doc.setFontSize(6.5);
+  for(const[label,val] of respRows){
+    doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");doc.text(label,14,y+3);
+    doc.setTextColor(...GREEN);doc.setFont("courier","normal");doc.text(val,55,y+3);
+    y+=4.5;
+  }
+  y+=2;
+
+  // ── Server Proof ──
+  doc.setFillColor(40,30,10);doc.roundedRect(10,y,(pw-20),4,1,1,"F");
+  doc.setFontSize(7);doc.setTextColor(...AMBER);doc.setFont("helvetica","bold");
+  doc.text("🏛 SERVER PROOF",14,y+3);
+  y+=7;
+
+  const proofRows=[
+    ["Signature",a.serverSig?`${a.sigHeader}: ${T(a.serverSig,60)}`:"None (server unsigned)"],
+    ["Request ID",a.requestId?`${a.reqIdHeader}: ${a.requestId}`:"None"],
+    ["Record ID",a.recordId?`${a.recordIdField}: ${T(a.recordId,60)}`:"Not extracted"],
+    ["Server",a.capturedHeaders.server||"Not disclosed"],
+    ["Server Date",a.capturedHeaders.date||"—"],
+  ];
+  doc.setFontSize(6.5);
+  for(const[label,val] of proofRows){
+    doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");doc.text(label,14,y+3);
+    doc.setTextColor(...AMBER);doc.setFont("courier","normal");doc.text(val,55,y+3);
+    y+=4.5;
+  }
+  y+=2;
+
+  // ── Captured Headers ──
+  doc.setFillColor(15,15,35);doc.roundedRect(10,y,(pw-20),4,1,1,"F");
+  doc.setFontSize(7);doc.setTextColor(...LGRAY);doc.setFont("helvetica","bold");
+  doc.text(`CAPTURED RESPONSE HEADERS (${Object.keys(a.capturedHeaders).length})`,14,y+3);
+  y+=6;
+
+  doc.setFontSize(5.5);doc.setFont("courier","normal");
+  for(const[k,v] of Object.entries(a.capturedHeaders).sort(([a],[b])=>a.localeCompare(b))){
+    if(y>270) break; // page overflow safety
+    doc.setTextColor(...GRAY);doc.text(`${k}:`,14,y+2.5);
+    doc.setTextColor(147,197,253);doc.text(T(v,80),55,y+2.5);
+    y+=3.5;
+  }
+  y+=3;
+
+  // ── Binding ──
+  if(y>250){doc.addPage();y=12;doc.setFillColor(...DARK);doc.rect(0,0,pw,ph,"F");}
+
+  doc.setFillColor(30,15,40);doc.roundedRect(10,y,(pw-20),4,1,1,"F");
+  doc.setFontSize(7);doc.setTextColor(167,139,250);doc.setFont("helvetica","bold");
+  doc.text("⛓ BINDING PROOF",14,y+3);
+  y+=7;
+
+  doc.setFontSize(6.5);
+  doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");doc.text("Round-Trip Hash",14,y+3);
+  doc.setTextColor(...AMBER);doc.setFont("courier","bold");doc.text(a.roundTripHash,55,y+3);
+  y+=5;
+  doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");doc.text("Integra ID",14,y+3);
+  doc.setTextColor(...WHITE);doc.setFont("courier","bold");doc.text(a.integraId,55,y+3);
+  y+=6;
+
+  doc.setFontSize(5);doc.setTextColor(60,60,60);doc.setFont("courier","normal");
+  doc.text("Formula: SHA-256( requestHash | responseBodyHash | headersHash | status | sig | reqId | recId | t1 | t2 )",14,y+2);
+  y+=4;
+  for(let i=0;i<a.components.length;i++){
+    doc.text(`  [${i}] ${T(a.components[i],80)}`,14,y+2);y+=3;
+  }
+  y+=3;
+
+  // ── Signature ──
+  if(a.sigResult){
+    if(y>255){doc.addPage();y=12;doc.setFillColor(...DARK);doc.rect(0,0,pw,ph,"F");}
+    doc.setFillColor(10,40,20);doc.roundedRect(10,y,(pw-20),4,1,1,"F");
+    doc.setFontSize(7);doc.setTextColor(34,197,94);doc.setFont("helvetica","bold");
+    doc.text("🔏 CRYPTOGRAPHIC SIGNATURE",14,y+3);
+    y+=7;
+
+    const sigRows=[
+      ["Signed By",a.sigResult.displayName],
+      ["Algorithm",a.sigResult.algorithm],
+      ["Method",a.sigResult.method],
+      ["Signature",a.sigResult.signature],
+      ["Public Key",a.sigResult.signedBy],
+      ["Sig Timestamp",a.sigResult.timestamp],
+    ];
+    doc.setFontSize(6.5);
+    for(const[label,val] of sigRows){
+      doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");doc.text(label,14,y+3);
+      doc.setTextColor(34,211,153);doc.setFont("courier","normal");doc.text(T(val,80),55,y+3);
+      y+=4.5;
+    }
+    y+=2;
+
+    // Hidden fields injected
+    doc.setFontSize(5.5);doc.setTextColor(60,60,60);
+    doc.text("Hidden form fields injected: integraSignature, integraSignedBy, integraSigAlg, integraSigMethod, integraSigTimestamp, integraSigUserId",14,y+2);
+    y+=3.5;
+    doc.text("HTTP headers prepared: X-Integra-Signature, X-Integra-Signed-By, X-Integra-Sig-Algorithm, X-Integra-Sig-Method, X-Integra-Sig-Timestamp, X-Integra-Sig-User-Id",14,y+2);
+    y+=5;
+  }else{
+    doc.setFontSize(6.5);doc.setTextColor(80,80,80);doc.setFont("helvetica","normal");
+    doc.text("Signature: Unsigned (no identity authenticated at submission time)",14,y+2);
+    y+=6;
+  }
+
+  // ── EAS ──
+  doc.setFillColor(40,15,30);doc.roundedRect(10,y,(pw-20),4,1,1,"F");
+  doc.setFontSize(7);doc.setTextColor(...PINK);doc.setFont("helvetica","bold");
+  doc.text("EAS ON-CHAIN REGISTRATION",14,y+3);
+  y+=7;
+
+  const easRows=[
+    ["Attestation UID",a.eas.uid],
+    ["Schema UID",a.eas.schema],
+    ["Chain",a.eas.chain],
+    ["Attester",a.eas.attester],
+    ["Block Time",new Date(a.eas.timestamp*1000).toISOString()],
+    ["Revocable",a.eas.revocable?"Yes":"No"],
+  ];
+  doc.setFontSize(6.5);
+  for(const[label,val] of easRows){
+    doc.setTextColor(...GRAY);doc.setFont("helvetica","bold");doc.text(label,14,y+3);
+    doc.setTextColor(...PINK);doc.setFont("courier","normal");doc.text(T(val,80),55,y+3);
+    y+=4.5;
+  }
+  y+=3;
+
+  // ── Footer ──
+  if(y>275){doc.addPage();y=12;doc.setFillColor(...DARK);doc.rect(0,0,pw,ph,"F");}
+  doc.setDrawColor(...BORDER);doc.line(10,y,pw-10,y);y+=4;
+  doc.setFontSize(6);doc.setTextColor(60,60,60);doc.setFont("helvetica","normal");
+  doc.text("This certificate was generated entirely client-side using jsPDF. No form data, hashes, or attestation details were transmitted to any server.",pw/2,y+2,{align:"center"});
+  y+=4;
+  doc.text("Verify at: https://verify.integraledger.com/a/"+a.integraId+" or scan the QR code above.",pw/2,y+2,{align:"center"});
+  y+=4;
+  doc.text(`Document generated: ${new Date().toISOString()} · Integra Ledger · integraledger.com`,pw/2,y+2,{align:"center"});
+
+  // ── Field verification instructions ──
+  y+=8;
+  doc.setFillColor(...CARD);doc.roundedRect(10,y,(pw-20),16,2,2,"F");
+  doc.setDrawColor(...BORDER);doc.roundedRect(10,y,(pw-20),16,2,2,"S");
+  doc.setFontSize(6.5);doc.setTextColor(...WHITE);doc.setFont("helvetica","bold");
+  doc.text("VERIFICATION INSTRUCTIONS",14,y+4);
+  doc.setFontSize(5.5);doc.setTextColor(...LGRAY);doc.setFont("helvetica","normal");
+  doc.text("To verify any individual field: HMAC-SHA256(salt, \"fieldName:fieldValue\") must match the hash in the table above.",14,y+8);
+  doc.text(`Salt for this attestation: ${a.salt}`,14,y+11.5);
+  doc.text("Round-trip binding can be verified by recomputing SHA-256 over the listed components in order.",14,y+14.5);
+
+  // Save
+  const filename=`integra-attestation-${a.integraId}.pdf`;
+  doc.save(filename);
+  log("PDF",`✅ Saved: ${filename} (client-side, never transmitted)`,"e");
+});
+
+})();
+</script>
+</body>
+</html>
