@@ -1,20 +1,4 @@
-name = "integra-re-explorer"
+name = "integra-form-engine"
 compatibility_date = "2025-12-01"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
-
-[[hyperdrive]]
-binding = "HYPERDRIVE_READER"
-id = "4a8547d8672a4d36921c48aaf309c68b"
-
-[[hyperdrive]]
-binding = "HYPERDRIVE_WRITER"
-id = "1c9193efed6749c5872171223d3da912"
-
-[[queues.producers]]
-binding = "RE_DOWNLOAD_QUEUE"
-queue = "re-download-queue"
-
-[vars]
-ENVIRONMENT = "production"
-TYPESENSE_HOST = "https://typesense-internal.integraledger.net"

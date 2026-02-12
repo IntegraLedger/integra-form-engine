@@ -5,9 +5,9 @@
  *  1. Form card with animated typing fields
  *  2. Checkbox + submit button
  *  3. Submit flash
- *  4. Shield with Integra logo morphs in (right side)
- *  5. Info panel fades in
- *  6. PDF document fades in
+ *  4. Screen 1: Shield with Integra logo + Verified Receipt info
+ *  5. Screen 1 fades out
+ *  6. Screen 2: PDF icon with "Download" + stylized PDF document fades in
  */
 
 // ─── Colour palettes ────────────────────────────────────────────
@@ -87,22 +87,29 @@ const FIELDS = [
   { label: 'Reference ID', text: 'VRF-2026-00482' },
 ];
 
-const CYCLE_DURATION = 14000; // ms — longer cycle for full flow
+const CYCLE_DURATION = 18000; // ms — 18s cycle with 2s holds
 
 // Timeline (fraction of cycle):
-const T_TYPE_END     = 0.32;  // fields done typing
-const T_CHECK        = 0.35;  // checkbox checked
-const T_BTN_READY    = 0.38;  // button glows
-const T_BTN_PRESS    = 0.42;  // button pressed
-const T_FLASH        = 0.46;  // submit flash
-const T_FLASH_END    = 0.50;
-const T_SHIELD_START = 0.50;  // shield morphs in
-const T_SHIELD_END   = 0.60;
-const T_INFO_START   = 0.60;  // info panel fades in
-const T_INFO_END     = 0.72;
-const T_PDF_START    = 0.72;  // pdf fades in
-const T_PDF_END      = 0.84;
-// 0.84–1.00: hold, then reset
+const T_TYPE_END     = 0.22;  // fields done typing
+const T_CHECK        = 0.24;  // checkbox checked
+const T_BTN_READY    = 0.26;  // button glows
+// ── 2s hold: completed form visible ──
+const T_BTN_PRESS    = 0.37;  // button pressed
+const T_FLASH        = 0.39;  // submit flash
+const T_FLASH_END    = 0.42;
+// Screen 2: attestation results
+const T_SHIELD_START = 0.42;  // shield morphs in
+const T_SHIELD_END   = 0.47;
+const T_INFO_START   = 0.47;  // info panel fades in
+const T_INFO_END     = 0.52;
+// ── 2s hold: verified receipt visible ──
+const T_S1_FADE_START = 0.63; // screen 2 starts fading out
+const T_S1_FADE_END   = 0.67; // screen 2 gone
+// Screen 3: PDF download
+const T_PDF_START    = 0.67;  // pdf icon + doc fade in
+const T_PDF_END      = 0.73;
+// ── 2s hold: PDF visible ── (0.73–0.84)
+// 0.84–1.00: extended hold, then reset
 
 // ─── Public API ─────────────────────────────────────────────────
 
@@ -151,9 +158,23 @@ export function renderForm(opts: RenderOptions): void {
     const rightX = cardX + cardW + w * 0.03;
     const rightW = w - rightX - w * 0.03;
 
-    drawShieldBadge(ctx, rightX, rightW, cardY, cardH, cycleT, p);
-    drawInfoPanel(ctx, rightX, rightW, cardY, cardH, dpr, cycleT, p);
-    drawPdfPanel(ctx, rightX, rightW, cardY, cardH, dpr, cycleT, p);
+    // Screen 1 fade-out alpha
+    let s1Alpha = 1;
+    if (cycleT >= T_S1_FADE_START) {
+      s1Alpha = 1 - Math.min(1, (cycleT - T_S1_FADE_START) / (T_S1_FADE_END - T_S1_FADE_START));
+    }
+
+    // Screen 2 (attestation): shield + info — with fade-out
+    if (s1Alpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = s1Alpha;
+      drawShieldBadge(ctx, rightX, rightW, cardY, cardH, cycleT, p);
+      drawInfoPanel(ctx, rightX, rightW, cardY, cardH, dpr, cycleT, p);
+      ctx.restore();
+    }
+
+    // Screen 3 (PDF): icon + download label + stylized PDF document
+    drawPdfScreen(ctx, rightX, rightW, cardY, cardH, dpr, cycleT, p);
   }
 }
 
@@ -239,7 +260,7 @@ function drawHeader(
   ctx.textBaseline = 'top';
   const headerX = cardX + cardW * 0.08;
   const headerY = cardY + cardH * 0.06;
-  ctx.fillText('Submit Form', headerX, headerY);
+  ctx.fillText('Fill Out & Submit Form', headerX, headerY);
 
   const divY = headerY + fontSize * 1.6;
   ctx.beginPath();
@@ -557,7 +578,7 @@ function drawInfoPanel(
   ctx.restore();
 }
 
-function drawPdfPanel(
+function drawPdfScreen(
   ctx: CanvasRenderingContext2D,
   rightX: number, rightW: number,
   cardY: number, cardH: number,
@@ -569,42 +590,89 @@ function drawPdfPanel(
   const t = Math.min(1, (cycleT - T_PDF_START) / (T_PDF_END - T_PDF_START));
   const ease = 1 - Math.pow(1 - t, 3);
 
-  // Larger document preview area
-  const panelH = cardH * 0.42;
-  const panelY = cardY + cardH * 0.54;
+  ctx.save();
+  ctx.globalAlpha = ease;
+
+  const cx = rightX + rightW / 2;
+
+  // ─── PDF file icon at top ───
+  const iconH = cardH * 0.12;
+  const iconW = iconH * 0.75;
+  const iconX = cx - iconW / 2;
+  const iconY = cardY + cardH * 0.02;
+  const fold = iconW * 0.28; // corner fold size
+
+  // File shape with folded corner
+  ctx.beginPath();
+  ctx.moveTo(iconX, iconY);
+  ctx.lineTo(iconX + iconW - fold, iconY);
+  ctx.lineTo(iconX + iconW, iconY + fold);
+  ctx.lineTo(iconX + iconW, iconY + iconH);
+  ctx.lineTo(iconX, iconY + iconH);
+  ctx.closePath();
+  ctx.fillStyle = '#dc2626';
+  ctx.fill();
+
+  // Corner fold triangle
+  ctx.beginPath();
+  ctx.moveTo(iconX + iconW - fold, iconY);
+  ctx.lineTo(iconX + iconW - fold, iconY + fold);
+  ctx.lineTo(iconX + iconW, iconY + fold);
+  ctx.closePath();
+  ctx.fillStyle = '#991b1b';
+  ctx.fill();
+
+  // "PDF" text on icon
+  const pdfLabelSize = Math.max(6, iconW * 0.32);
+  ctx.font = `800 ${pdfLabelSize}px "Inter", system-ui, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('PDF', iconX + iconW / 2, iconY + iconH * 0.62);
+
+  // "Download" text below icon
+  const dlSize = Math.max(7, rightW * 0.055);
+  ctx.font = `600 ${dlSize}px "Outfit", system-ui, sans-serif`;
+  ctx.fillStyle = 'rgba(226, 232, 240, 0.85)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Download', cx, iconY + iconH + cardH * 0.02);
+  ctx.textAlign = 'start';
+
+  // ─── Stylized PDF document below ───
+  const docTopY = iconY + iconH + cardH * 0.08;
+  const docH = cardY + cardH - docTopY - cardH * 0.02;
   const r = 4;
   const padX = rightW * 0.06;
   const innerW = rightW - padX * 2;
 
-  ctx.save();
-  ctx.globalAlpha = ease;
   const slideOffset = (1 - ease) * 20;
-  const py = panelY + slideOffset;
+  const py = docTopY + slideOffset;
 
   // Document shadow
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.4)';
   ctx.shadowBlur = 12;
   ctx.shadowOffsetY = 4;
-  roundRect(ctx, rightX, py, rightW, panelH, r);
+  roundRect(ctx, rightX, py, rightW, docH, r);
   ctx.fillStyle = '#0f0f1e';
   ctx.fill();
   ctx.restore();
 
-  // Document background (dark like the PDF)
-  roundRect(ctx, rightX, py, rightW, panelH, r);
+  // Document background
+  roundRect(ctx, rightX, py, rightW, docH, r);
   ctx.fillStyle = '#0f0f1e';
   ctx.fill();
-  roundRect(ctx, rightX, py, rightW, panelH, r);
+  roundRect(ctx, rightX, py, rightW, docH, r);
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  let y = py + panelH * 0.04;
+  let y = py + docH * 0.04;
   const dx = rightX + padX;
 
   // ─── Title bar ───
-  const titleH = panelH * 0.08;
+  const titleH = docH * 0.07;
   roundRect(ctx, dx, y, innerW, titleH, 2);
   ctx.fillStyle = 'rgba(19, 19, 42, 0.9)';
   ctx.fill();
@@ -612,17 +680,17 @@ function drawPdfPanel(
   ctx.lineWidth = 0.5;
   ctx.stroke();
 
-  const titleSize = Math.max(4, innerW * 0.045);
+  const titleSize = Math.max(4, innerW * 0.042);
   ctx.font = `700 ${titleSize}px "Inter", system-ui, sans-serif`;
   ctx.fillStyle = '#ffffff';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   ctx.fillText('Integra Ledger — Attestation Certificate', dx + innerW / 2, y + titleH / 2);
   ctx.textAlign = 'start';
-  y += titleH + panelH * 0.025;
+  y += titleH + docH * 0.02;
 
   // ─── QR + ID block ───
-  const qrBlockH = panelH * 0.14;
+  const qrBlockH = docH * 0.13;
   roundRect(ctx, dx, y, innerW, qrBlockH, 2);
   ctx.fillStyle = 'rgba(19, 19, 42, 0.7)';
   ctx.fill();
@@ -635,7 +703,6 @@ function drawPdfPanel(
   const qrX = dx + padX * 0.5;
   const qrY = y + (qrBlockH - qrSize) / 2;
   ctx.fillStyle = '#ffffff';
-  // Draw simplified QR grid
   const cells = 7;
   const cellSize = qrSize / cells;
   const qrPattern = [
@@ -647,10 +714,10 @@ function drawPdfPanel(
     1,0,1,1,1,0,1,
     1,1,1,0,1,1,1,
   ];
-  for (let r = 0; r < cells; r++) {
+  for (let row = 0; row < cells; row++) {
     for (let c = 0; c < cells; c++) {
-      if (qrPattern[r * cells + c]) {
-        ctx.fillRect(qrX + c * cellSize, qrY + r * cellSize, cellSize * 0.85, cellSize * 0.85);
+      if (qrPattern[row * cells + c]) {
+        ctx.fillRect(qrX + c * cellSize, qrY + row * cellSize, cellSize * 0.85, cellSize * 0.85);
       }
     }
   }
@@ -672,7 +739,7 @@ function drawPdfPanel(
   ctx.font = `400 ${tinySize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#f59e0b';
   ctx.fillText('b93cf4d0be12ecc4f2...', idX, y + qrBlockH * 0.72);
-  y += qrBlockH + panelH * 0.025;
+  y += qrBlockH + docH * 0.02;
 
   // ─── Section bars with data rows ───
   const sections = [
@@ -683,14 +750,14 @@ function drawPdfPanel(
     { label: 'EAS ON-CHAIN', color: '#ec4899', rows: 1 },
   ];
 
-  const barH = Math.max(3, panelH * 0.03);
-  const rowH = Math.max(2.5, panelH * 0.022);
-  const sectionGap = panelH * 0.012;
+  const barH = Math.max(3, docH * 0.028);
+  const rowH = Math.max(2.5, docH * 0.02);
+  const sectionGap = docH * 0.01;
   const barLabelSize = Math.max(2.5, innerW * 0.024);
   const rowColor = 'rgba(180, 180, 180, 0.3)';
 
   for (const section of sections) {
-    if (y + barH > py + panelH - panelH * 0.04) break;
+    if (y + barH > py + docH - docH * 0.06) break;
 
     // Section header bar
     roundRect(ctx, dx, y, innerW, barH, 1);
@@ -704,15 +771,13 @@ function drawPdfPanel(
     ctx.fillText(section.label, dx + padX * 0.3, y + barH / 2);
     y += barH + 1;
 
-    // Data rows (thin lines)
+    // Data rows
     for (let i = 0; i < section.rows; i++) {
-      if (y + rowH > py + panelH - panelH * 0.04) break;
-      // Alternating row shading
+      if (y + rowH > py + docH - docH * 0.06) break;
       if (i % 2 === 0) {
         ctx.fillStyle = 'rgba(13, 13, 28, 0.5)';
         ctx.fillRect(dx, y, innerW, rowH);
       }
-      // Simulated label + value lines
       ctx.fillStyle = rowColor;
       ctx.fillRect(dx + padX * 0.3, y + rowH * 0.35, innerW * 0.15, 1);
       ctx.fillStyle = 'rgba(147, 197, 253, 0.4)';
@@ -722,8 +787,8 @@ function drawPdfPanel(
     y += sectionGap;
   }
 
-  // ─── Footer line ───
-  const footerY = py + panelH - panelH * 0.06;
+  // ─── Footer ───
+  const footerY = py + docH - docH * 0.05;
   ctx.beginPath();
   ctx.moveTo(dx, footerY);
   ctx.lineTo(dx + innerW, footerY);
@@ -735,7 +800,7 @@ function drawPdfPanel(
   ctx.font = `400 ${footSize}px "Inter", system-ui, sans-serif`;
   ctx.fillStyle = 'rgba(60, 60, 60, 0.8)';
   ctx.textAlign = 'center';
-  ctx.fillText('Generated entirely client-side. No data transmitted.', dx + innerW / 2, footerY + panelH * 0.025);
+  ctx.fillText('Generated entirely client-side. No data transmitted.', dx + innerW / 2, footerY + docH * 0.02);
   ctx.textAlign = 'start';
 
   ctx.restore();

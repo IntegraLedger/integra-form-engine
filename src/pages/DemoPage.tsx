@@ -914,23 +914,51 @@ export function DemoPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">
-            <GradientText as="span">Attestation</GradientText> Demo
+          <h1 className="text-2xl font-bold mb-3">
+            <GradientText as="span">Form Engine</GradientText> Running on Any Website with One Line of Code
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             Submit → capture response → hash both sides → generate PDF locally.
             Nothing leaves your machine.
           </p>
+          <div className="inline-block bg-black/40 border border-white/10 rounded-lg px-4 py-2 font-mono text-xs text-emerald-400">
+            {'<script src="https://cdn.integraledger.com/attest.js"></script>'}
+          </div>
         </div>
 
-        {/* Form Card */}
-        <div className="card-enhanced overflow-hidden mb-6">
-          <div className="px-4 py-3 border-b border-border/50 text-sm font-bold flex items-center gap-2">
-            📝 Client Intake Form
+        {/* Browser chrome window */}
+        <div className="rounded-xl border border-white/20 overflow-hidden shadow-2xl mb-6">
+          {/* Browser title bar */}
+          <div className="bg-[#1e1e2e] border-b border-white/10 px-4 py-2.5 flex items-center gap-3">
+            {/* Traffic lights */}
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+              <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+              <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+            </div>
+            {/* URL bar */}
+            <div className="flex-1 flex justify-center">
+              <div className="bg-black/30 border border-white/10 rounded-md px-4 py-1 text-xs text-white/50 font-mono flex items-center gap-1.5 min-w-[280px]">
+                <svg className="w-3 h-3 text-green-400/70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <span className="text-white/70">acme.com</span><span>/client-intake</span>
+              </div>
+            </div>
+            <div className="w-[52px]" /> {/* spacer to balance traffic lights */}
           </div>
+
+          {/* Browser page content */}
+          <div className="bg-[#0d0d1a]">
+            {/* Page title inside browser */}
+            <div className="px-6 pt-5 pb-3">
+              <h2 className="text-xl font-bold text-white">ACME Corp Client Intake Form</h2>
+              <p className="text-xs text-white/40 mt-0.5">Secured with Integra Ledger blockchain attestation</p>
+            </div>
+
+            {/* Form Card */}
+            <div className="mx-4 mb-4 card-enhanced overflow-hidden">
           <div className="p-4">
             {/* Auth bar */}
             <div className="flex items-center gap-2 py-2 border-b border-border/50 mb-3">
@@ -1193,15 +1221,18 @@ export function DemoPage() {
             </div>
           </div>
         </div>
+          </div> {/* end browser page content */}
+        </div> {/* end browser chrome window */}
 
       </div>
 
       {/* Right sliding drawer */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50" onClick={() => setDrawerOpen(false)}>
-          <div className="absolute inset-0 bg-black/15" />
+          <div className="absolute inset-0 bg-black/15 animate-in fade-in duration-300" />
           <div
-            className="absolute top-0 right-0 h-full w-full max-w-lg bg-card/90 backdrop-blur-md border-l border-border/50 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300"
+            className="absolute top-0 right-0 h-full w-full max-w-lg bg-card/95 backdrop-blur-md border-l border-border/50 overflow-y-auto animate-in slide-in-from-right duration-500 ease-out"
+            style={{ boxShadow: '-12px 0 40px rgba(0,0,0,0.5), -4px 0 16px rgba(0,0,0,0.3)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm border-b border-border/50">

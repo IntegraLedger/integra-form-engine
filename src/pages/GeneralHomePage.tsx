@@ -19,7 +19,7 @@ const CARDS: { icon: LucideIcon; title: string; desc: string; href: string; btnL
   },
   {
     icon: Download,
-    title: 'Install Integra Plugin',
+    title: 'Install Integra Plugin  - (Optional)',
     desc: 'Add attestation to any website with a single script tag, NPM package, or Chrome extension. Under 2 minutes to integrate.',
     href: '/install',
     btnLabel: 'Install Guide',
@@ -48,10 +48,10 @@ export function GeneralHomePage() {
             <h1 className="text-hero font-bold mb-3">
               <GradientText as="span">Universal Form</GradientText> Verifier
             </h1>
-            <p className="text-muted-foreground text-lg text-balance max-w-xl mx-auto lg:mx-0">
-              With one line of HTML code, add automatic blockchain verification
-              to any website with PDF attestation receipts. Data is never
-              submitted to Integra — even the PDF receipt is generated locally
+            <p className="text-muted-foreground text-xl text-balance max-w-xl mx-auto lg:mx-0">
+              With <span className="font-bold text-foreground text-[1.35rem]">one line of HTML code</span>, add automatic blockchain verification
+              to any website with PDF attestation receipts. <span className="font-bold text-foreground text-[1.35rem]">Data is never
+              submitted to Integra</span> — even the PDF receipt is generated locally
               in the browser.
             </p>
           </div>
