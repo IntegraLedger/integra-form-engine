@@ -1182,7 +1182,7 @@ export function DemoPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold border border-primary/40 bg-transparent text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-wait"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold border border-primary/40 bg-transparent text-black dark:text-white hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-wait"
                 >
                   {submitting ? 'Attesting…' : 'Submit & Attest'}
                 </button>
@@ -1211,7 +1211,7 @@ export function DemoPage() {
             <div className="flex justify-end items-center gap-3 pt-3 mt-3 border-t border-border/50">
               <div className="text-right">
                 <div className={`text-xs font-semibold ${attestation ? 'text-emerald-400' : submitting ? 'text-primary' : 'text-muted-foreground/50'}`}>
-                  {attestation ? 'Attested ✓' : submitting ? 'Attesting…' : 'Integra Ready'}
+                  {attestation ? 'Attested ✓' : submitting ? 'Attesting…' : 'Trust with Integra Enabled'}
                 </div>
                 <div className="text-[10px] text-muted-foreground/40 mt-0.5">
                   {attestation ? `Scan to verify · ${attestation.integraId}` : 'Submit to attest'}

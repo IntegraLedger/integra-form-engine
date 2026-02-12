@@ -50,7 +50,7 @@ export function GeneralHomePage() {
             </h1>
             <p className="text-muted-foreground text-xl text-balance max-w-xl mx-auto lg:mx-0">
               With <span className="font-bold text-foreground text-[1.35rem]">one line of HTML code</span>, add automatic blockchain verification
-              to any website with PDF attestation receipts. <span className="font-bold text-foreground text-[1.35rem]">Data is never
+              to any website form with PDF attestation receipts. <span className="font-bold text-foreground text-[1.35rem]">Data is never
               submitted to Integra</span> — even the PDF receipt is generated locally
               in the browser.
             </p>

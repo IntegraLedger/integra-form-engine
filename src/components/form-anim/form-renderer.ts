@@ -388,7 +388,7 @@ function drawSubmitButton(
 ) {
   const padX = cardW * 0.08;
   const btnH = cardH * 0.1;
-  const btnW = cardW - padX * 2;
+  const btnW = cardW * 0.4; // narrower button
   const btnX = cardX + padX;
   const btnY = cardY + cardH * 0.82;
   const btnR = btnH * 0.3;
@@ -430,6 +430,38 @@ function drawSubmitButton(
   const label = btnDone ? 'Verified ✓' : btnPressed ? 'Submitting...' : 'Submit & Attest';
   ctx.fillText(label, btnX + btnW / 2, btnY + btnH / 2);
   ctx.textAlign = 'start';
+
+  // Small Integra shield right-aligned on button row
+  const shieldS = btnH * 0.55;
+  const shieldCx = cardX + cardW - padX - shieldS * 0.5;
+  const shieldCy = btnY + btnH / 2;
+  ctx.save();
+  ctx.translate(shieldCx, shieldCy);
+
+  // Shield border
+  shieldPath(ctx, shieldS * 1.04);
+  ctx.fillStyle = p.shieldBorder;
+  ctx.fill();
+
+  // Shield body
+  shieldPath(ctx, shieldS);
+  ctx.fillStyle = p.shieldFill;
+  ctx.fill();
+
+  // Mini Integra logo inside
+  const ls = (shieldS * 0.8) / 60;
+  ctx.save();
+  ctx.translate(-27 * ls, -30 * ls);
+  ctx.scale(ls, ls);
+  const logo = new Path2D(LOGO_PATH);
+  const logoGrad = ctx.createLinearGradient(7.83, 48.99, 45.68, 11.13);
+  logoGrad.addColorStop(0, '#0056F5');
+  logoGrad.addColorStop(1, '#33CCF4');
+  ctx.fillStyle = logoGrad;
+  ctx.fill(logo);
+  ctx.restore();
+
+  ctx.restore();
 }
 
 function drawSubmitFlash(
