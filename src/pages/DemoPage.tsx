@@ -1182,7 +1182,7 @@ export function DemoPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold border border-primary/40 bg-transparent text-black dark:text-white hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-wait"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-wait"
                 >
                   {submitting ? 'Attesting…' : 'Submit & Attest'}
                 </button>
@@ -1213,26 +1213,41 @@ export function DemoPage() {
                 <div className={`text-xs font-semibold ${attestation ? 'text-emerald-400' : submitting ? 'text-primary' : 'text-muted-foreground/50'}`}>
                   {attestation ? 'Attested ✓' : submitting ? 'Attesting…' : 'Trust with Integra Enabled'}
                 </div>
-                <div className="text-[10px] text-muted-foreground/40 mt-0.5">
+                <div className="text-[10px] text-foreground/80 mt-0.5">
                   {attestation ? `Scan to verify · ${attestation.integraId}` : 'Submit to attest'}
                 </div>
+                {attestation && (
+                  <div className="text-[10px] text-primary/70 mt-1 cursor-pointer hover:text-primary transition-colors" onClick={() => setDrawerOpen(true)}>
+                    Scan or Click QR Code to View Verification Info
+                  </div>
+                )}
               </div>
-              <canvas ref={qrRef} width={100} height={100} className="rounded-lg" />
+              <canvas
+                ref={qrRef}
+                width={100}
+                height={100}
+                className={`rounded-lg ${attestation ? 'cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow' : ''}`}
+                onClick={() => { if (attestation) setDrawerOpen(true); }}
+              />
             </div>
           </div>
         </div>
           </div> {/* end browser page content */}
         </div> {/* end browser chrome window */}
 
+        <p className="text-xs text-muted-foreground/60 text-center mt-4">
+          Uses the website SSL cert in the Integra Ledger verified record
+        </p>
+
       </div>
 
       {/* Right sliding drawer */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50" onClick={() => setDrawerOpen(false)}>
-          <div className="absolute inset-0 bg-black/15 animate-in fade-in duration-300" />
+          <div className="absolute inset-0 bg-black/40 animate-drawer-backdrop" />
           <div
-            className="absolute top-0 right-0 h-full w-full max-w-lg bg-card/95 backdrop-blur-md border-l border-border/50 overflow-y-auto animate-in slide-in-from-right duration-500 ease-out"
-            style={{ boxShadow: '-12px 0 40px rgba(0,0,0,0.5), -4px 0 16px rgba(0,0,0,0.3)' }}
+            className="absolute top-0 right-0 h-full w-full max-w-lg bg-card/95 backdrop-blur-md border-l border-border/50 overflow-y-auto animate-drawer-in"
+            style={{ boxShadow: '-20px 0 60px rgba(0,0,0,0.6), -8px 0 24px rgba(0,0,0,0.4), -2px 0 8px rgba(0,0,0,0.2)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm border-b border-border/50">
