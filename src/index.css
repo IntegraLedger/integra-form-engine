@@ -387,7 +387,14 @@ code, pre, .font-mono {
   to { opacity: 1; }
 }
 .animate-drawer-in { animation: drawer-slide-in 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+.animate-drawer-out { animation: drawer-slide-in 0.5s cubic-bezier(0.4,0,1,1) reverse forwards; }
 .animate-drawer-backdrop { animation: drawer-backdrop-in 0.3s ease-out forwards; }
+.animate-drawer-backdrop-out { animation: drawer-backdrop-in 0.3s ease-in reverse forwards; }
+@keyframes submit-glow {
+  0%, 100% { box-shadow: 0 0 10px oklch(55% 0.18 250 / 0.4), 0 0 4px oklch(55% 0.18 250 / 0.3); transform: scale(1); }
+  50% { box-shadow: 0 0 35px oklch(55% 0.22 250 / 0.8), 0 0 15px oklch(55% 0.22 250 / 0.6), 0 0 60px oklch(55% 0.18 250 / 0.3); transform: scale(1.03); }
+}
+.animate-submit-glow { animation: submit-glow 1.5s ease-in-out infinite; }
 @keyframes glow-pulse {
   0%, 100% { box-shadow: 0 0 20px oklch(55% 0.18 250 / 0.3); }
   50% { box-shadow: 0 0 40px oklch(55% 0.18 250 / 0.5); }

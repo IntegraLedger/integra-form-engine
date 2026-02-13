@@ -238,7 +238,11 @@ export function DemoPage() {
   const [authTab, setAuthTab] = useState<'api' | 'key' | 'wal'>('api');
   const [authSession, setAuthSession] = useState(Auth.getSession());
   const [authErr, setAuthErr] = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerState, setDrawerState] = useState<'open' | 'closing' | null>(null);
+  const closeDrawer = () => {
+    setDrawerState('closing');
+    setTimeout(() => setDrawerState(null), 500);
+  };
   const logRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<HTMLCanvasElement>(null);
 
@@ -445,12 +449,6 @@ export function DemoPage() {
     }
   }
 
-  function handleSignOut() {
-    Auth.signOut();
-    setAuthSession(null);
-    setAuthOpen(false);
-    log('AUTH', 'Signed out', 'w');
-  }
 
   // ─── Main submit ───────────────────────────────────────
 
@@ -946,7 +944,7 @@ export function DemoPage() {
                 <span className="text-white/70">acme.com</span><span>/client-intake</span>
               </div>
             </div>
-            <div className="w-[52px]" /> {/* spacer to balance traffic lights */}
+            <span className="text-[11px] font-bold text-red-400 bg-red-400/10 border border-red-400/20 rounded-md px-3 py-0.5">Hit the Submit Button &amp; Test for Real</span>
           </div>
 
           {/* Browser page content */}
@@ -985,13 +983,6 @@ export function DemoPage() {
                     : 'Attestations will be unsigned'}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={authSession ? handleSignOut : () => setAuthOpen(!authOpen)}
-                className={`text-[9px] font-semibold px-3 py-1 rounded-md ${authSession ? 'bg-card text-muted-foreground' : 'bg-primary text-primary-foreground'}`}
-              >
-                {authSession ? 'Sign Out' : 'Sign In'}
-              </button>
             </div>
 
             {/* Auth panel */}
@@ -1182,9 +1173,9 @@ export function DemoPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-wait"
+                  className={`px-5 py-1.5 rounded-lg text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-wait ${!submitting && !attestation ? 'animate-submit-glow' : ''}`}
                 >
-                  {submitting ? 'Attesting…' : 'Submit & Attest'}
+                  {submitting ? 'Submitting…' : 'Submit'}
                 </button>
                 {attestation && (
                   <>
@@ -1197,7 +1188,7 @@ export function DemoPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDrawerOpen(true)}
+                      onClick={() => setDrawerState('open')}
                       className="px-5 py-1.5 rounded-lg text-xs font-semibold border border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:border-border transition-colors"
                     >
                       View Info
@@ -1217,7 +1208,7 @@ export function DemoPage() {
                   {attestation ? `Scan to verify · ${attestation.integraId}` : 'Submit to attest'}
                 </div>
                 {attestation && (
-                  <div className="text-[10px] text-primary/70 mt-1 cursor-pointer hover:text-primary transition-colors" onClick={() => setDrawerOpen(true)}>
+                  <div className="text-[10px] text-primary/70 mt-1 cursor-pointer hover:text-primary transition-colors" onClick={() => setDrawerState('open')}>
                     Scan or Click QR Code to View Verification Info
                   </div>
                 )}
@@ -1227,7 +1218,7 @@ export function DemoPage() {
                 width={100}
                 height={100}
                 className={`rounded-lg ${attestation ? 'cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow' : ''}`}
-                onClick={() => { if (attestation) setDrawerOpen(true); }}
+                onClick={() => { if (attestation) setDrawerState('open'); }}
               />
             </div>
           </div>
@@ -1242,11 +1233,11 @@ export function DemoPage() {
       </div>
 
       {/* Right sliding drawer */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50" onClick={() => setDrawerOpen(false)}>
-          <div className="absolute inset-0 bg-black/40 animate-drawer-backdrop" />
+      {drawerState && (
+        <div className="fixed inset-0 z-50" onClick={() => closeDrawer()}>
+          <div className={`absolute inset-0 bg-black/40 ${drawerState === 'closing' ? 'animate-drawer-backdrop-out' : 'animate-drawer-backdrop'}`} />
           <div
-            className="absolute top-0 right-0 h-full w-full max-w-lg bg-card/95 backdrop-blur-md border-l border-border/50 overflow-y-auto animate-drawer-in"
+            className={`absolute top-0 right-0 h-full w-full max-w-lg bg-card/95 backdrop-blur-md border-l border-border/50 overflow-y-auto ${drawerState === 'closing' ? 'animate-drawer-out' : 'animate-drawer-in'}`}
             style={{ boxShadow: '-20px 0 60px rgba(0,0,0,0.6), -8px 0 24px rgba(0,0,0,0.4), -2px 0 8px rgba(0,0,0,0.2)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1254,7 +1245,7 @@ export function DemoPage() {
               <div className="px-4 py-3 flex items-center justify-between">
                 <span className="text-sm font-bold">Attestation Details</span>
                 <button
-                  onClick={() => setDrawerOpen(false)}
+                  onClick={() => closeDrawer()}
                   className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
                 >
                   ✕
